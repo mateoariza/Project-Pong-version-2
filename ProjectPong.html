@@ -1,0 +1,117 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+use ieee.std_logic_arith.all;
+
+ENTITY ProjectPong IS
+PORT
+(
+   reset, clk, ena : IN STD_LOGIC;
+   P1_UP: in std_logic ;
+	P1_DW: in std_logic ;
+	P2_UP: in std_logic ;
+	P2_DW: in std_logic ;
+	
+	row: out std_logic_Vector(7 downto 0);
+   col: out std_logic_Vector(15 downto 0);
+	intRtestout, intctestout: out std_LOGIC_vector (3 downto 0);
+	ssegresult_1: out std_logic_Vector(6 downto 0);
+	ssegresult_2: out std_logic_Vector(6 downto 0);
+	ssegresult_3: out std_logic_Vector(6 downto 0);
+	ssegresult_4: out std_logic_Vector(6 downto 0)
+	);
+	
+END ProjectPong;
+
+
+ARCHITECTURE ArchPong OF ProjectPong IS
+
+
+  signal PadRow1S : std_logic_Vector(7 downto 0);
+  signal PadCol1S : std_logic_Vector(15 downto 0):="1000000000000000";
+
+  signal PadRow2S : std_logic_Vector(7 downto 0);
+  signal PadCol2S : std_logic_Vector(15 downto 0):="0000000000000001";
+
+  signal BalRowS : std_logic_Vector(7 downto 0);
+  signal BalColS : std_logic_Vector(15 downto 0);
+ 
+  signal P1_Dummy: std_logic_Vector(2 downto 0);
+  signal P2_Dummy: std_logic_Vector(2 downto 0);
+  
+  signal LossP1  :integer range 0 to 3:=0;
+  signal LossP2  :integer range 0 to 3:=0;
+  signal ScoreP1 :std_LOGIC_vector (7 downto 0):="00000000";
+  signal ScoreP2 :std_LOGIC_vector (7 downto 0):="00000000";
+	
+  
+  BEGIN 
+
+    PadMove: ENTITY work.fsm1Pads --- Posicion de los paddles ---
+    PORT MAP(
+	  reset => reset,
+	  clk => clk,
+	  ena => ena,
+	  
+     P1_UP => P1_UP,
+	  P1_DW => P1_DW,
+	  P2_UP => P2_UP,
+	  P2_DW => P2_DW,
+	  P1_Dummy => P1_Dummy,
+	  P2_Dummy => P2_Dummy,
+     P1_Print => PadRow1S,
+	  P2_Print => PadRow2S
+	  
+     );
+	  
+	 PadtoMux2: ENTITY work.fsm1 --- imprime frame by frame ---
+    PORT MAP(
+	  clk => clk,
+	  
+     DPad1_R => PadRow1S,
+	  DPad1_C => PadCol1S,
+	  
+	  DBALL_R => BalRowS,
+	  DBALL_C => BalColS,
+	  
+     DPad2_R => PadRow2S,
+	  DPad2_C => PadCol2S,
+	  
+	  row => row,
+	  col => col
+     ); 
+	  
+	CollisionPad: ENTITY work.Ball
+     PORT MAP(
+	    P1_Dummy => P1_Dummy,
+	    P2_Dummy => P2_Dummy,
+	    reset => reset,
+	    clk => clk,
+	    rowBall_out => BalRowS,
+       colBall_out => BalColS,
+	    LossP1_out => LossP1,
+		 LossP2_out => LossP2,
+		 ScoreP1_out => ScoreP1,
+		 ScoreP2_out => ScoreP2,
+		 intRtestout => intRtestout,
+		 intctestout => intctestout
+     );	
+	  
+	 toBcd_left: ENTITY work.BCD
+     PORT MAP(
+	    Num1 => ScoreP1,
+		 ssegg_3 => ssegresult_1,
+       ssegg_4 => ssegresult_2   
+     ); 
+	  
+	  toBcd_right: ENTITY work.BCD
+     PORT MAP(
+	    Num1 => ScoreP2,
+		 ssegg_3 => ssegresult_3,
+       ssegg_4 => ssegresult_4   
+     ); 
+	  
+	
+	  
+	  
+END ArchPong;

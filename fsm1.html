@@ -1,0 +1,151 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+use ieee.std_logic_arith.all;
+
+ENTITY fsm1 IS
+PORT
+(
+  clk: IN STD_LOGIC; 
+  --PAD1--
+  Dpad1_R : IN std_logic_vector(7 downto 0);
+  Dpad1_C : IN std_logic_vector(15 downto 0);
+
+-- BALL --0
+  DBALL_R : IN std_logic_vector(7 downto 0);
+  DBALL_C : IN std_logic_vector(15 downto 0);
+-- PAD2--
+  Dpad2_R : IN std_logic_vector(7 downto 0);
+  Dpad2_C : IN std_logic_vector(15 downto 0);
+
+  row	 : out std_logic_Vector(7 downto 0);
+  col	 : out std_logic_Vector(15 downto 0)
+  
+  
+);
+END fsm1;
+
+ARCHITECTURE beh OF fsm1 IS
+
+
+
+type state_type is (frame_pad1, frame_ball, frame_pad2,resetTime1,resetTime2,resetTime3);
+
+signal cs, ns: state_type;
+
+signal counter : std_logic_vector(3 downto 0);
+
+signal flagPrint : std_logic;
+signal ena : std_logic;
+
+signal Reset : std_logic:='0';
+
+
+--PAD1--
+  SIGNAL pad1_R :  std_logic_vector(7 downto 0);
+  SIGNAL pad1_C :  std_logic_vector(15 downto 0):="1000001000000000";
+
+-- BALL --0
+  SIGNAL BALL_R :  std_logic_vector(7 downto 0);
+  SIGNAL BALL_C :  std_logic_vector(15 downto 0);
+-- PAD2--
+  SIGNAL pad2_R :  std_logic_vector(7 downto 0);
+  SIGNAL pad2_C :  std_logic_vector(15 downto 0):="0000000000000001";
+  signal reset_c: std_logic:='0';
+
+BEGIN
+         pad1_R <= Dpad1_R;
+			pad1_C <= Dpad1_C;
+			 balL_R <= DbaLL_R;
+			 balL_C  <= DbaLL_C;
+			pad2_R <= Dpad2_R;
+			pad2_C <= Dpad2_C;
+
+			Process(reset, clk)
+			Begin
+					If (reset = '1') then
+					  cs <= frame_pad1;
+					  counter <= "0000";
+					elsif (rising_edge(clk)) then
+					  cs <= ns;
+					  counter<= counter + 1;
+					end if;
+End process;
+
+  salida200ms:  entity work.univ_bin_counter_200ms
+  PORT MAP (  clk      => clk,
+              rst      => reset_c,
+				  ena      => ena,
+				  syn_clr  => '0',
+				  load     => '1',
+				  up       => '1',
+				  d        => "0000000000000000000", 
+				  max_tick => flagPrint
+			   );
+
+	Process(cs,flagPrint,reset_c,ena)
+		Begin
+			  case (cs) is
+					When frame_pad1 => 
+					row <= pad1_R;
+					col <= pad1_C;
+					ena <='1';
+					reset_c <= '0';
+					reset <= '0';
+				if (flagPrint = '1') then  
+					ns <= resetTime1;	
+				else
+				   ns <=frame_pad1; 	
+			   end if;	
+					
+					When resetTime1 =>
+					
+					reset_c <= '1';
+					reset <= '0';
+					
+					ena <='0';
+					ns <= frame_ball;
+									
+					When frame_pad2 =>
+					row <= pad2_R;
+					col <= pad2_C;
+					reset <= '0';
+					ena <='1';
+					reset_c <= '0';
+		  if (flagPrint = '1') then
+					ns <= resetTime2;
+		  else
+				   ns <=frame_pad2;	
+		  end if;
+								  
+					When resetTime2 =>
+				
+					reset_c <= '1';
+					reset <= '0';
+					ena <='0';
+					ns <= frame_pad1;
+					
+					When frame_ball =>
+					row <= balL_R;
+					col <= balL_C;
+					reset <= '0';
+					ena <='1';
+					reset_c <= '0';
+					
+	    if (flagPrint = '1') then
+					ns <=resetTime3;
+	    else
+				   ns <=frame_ball; 	
+		 end if;
+		       
+				  When resetTime3 =>
+				  
+					reset_c <= '1';
+					ena <='0';
+					reset <= '0';
+					ns <= frame_pad2;
+					
+	  end case;
+					 				  
+End process;
+END beh;

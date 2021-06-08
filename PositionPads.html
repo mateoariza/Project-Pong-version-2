@@ -1,0 +1,27 @@
+LIBRARY IEEE;
+use IEEE.std_logic_1164.all;
+
+ENTITY PositionPads IS
+PORT(
+
+Pos_Pad: in std_LOGIC_VECTOR (2 downto 0);
+PadRows : OUT STD_LOGIC_VECTOR(7 DOWNTO 0));
+
+END PositionPads ;
+
+ARCHITECTURE functional OF PositionPads IS
+
+BEGIN
+
+WITH Pos_Pad SELECT
+PadRows <=
+"11111000" WHEN "000",
+"11110001" WHEN "001",
+"11100011" WHEN "010",
+"11000111" WHEN "011",
+"10001111" WHEN "100",
+"00011111" WHEN "101",
+"11111111" WHEN OTHERS;
+
+END ARCHITECTURE functional;
+

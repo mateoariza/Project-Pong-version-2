@@ -1,0 +1,274 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+use ieee.std_logic_arith.all;
+
+ENTITY fsm1Pads IS
+PORT
+(
+  reset, clk, ena : IN STD_LOGIC; 
+  P1_UP: in  std_logic ;
+  P1_DW: in  std_logic ;
+  P2_UP: in  std_logic ;
+  P2_DW: in  std_logic ;
+  P1_Dummy: out std_LOGIC_VECTOR (2 downto 0);
+  P2_Dummy: out std_LOGIC_VECTOR (2 downto 0);
+  P1_Print: out std_logic_Vector(7 downto 0);
+  P2_Print: out std_logic_Vector(7 downto 0)
+
+);
+END fsm1Pads;
+
+ARCHITECTURE behPads OF fsm1Pads IS
+
+
+
+type state_type is (megawait, Pad_wait, Pad1_Down, Pad1_Up, Pad2_Down, Pad2_Up,
+                    Pad12_Ups, Pad12_Downs, Pad1_Up_Pad2_Down,
+						  Pad1_Down_Pad2_Up);
+
+signal cs, ns: state_type;
+
+signal counter : std_logic_vector(3 downto 0);
+
+--Signals--
+
+
+--PAD1--
+signal pad1_R : std_logic_vector(7 downto 0);
+signal pad1_C : std_logic_vector(15 downto 0);
+
+-- BALL --
+signal BALL_R : std_logic_vector(7 downto 0);
+signal BALL_C : std_logic_vector(15 downto 0);
+
+-- PAD2--
+signal pad2_R : std_logic_vector(7 downto 0);
+signal pad2_C : std_logic_vector(15 downto 0);
+
+--Position Paddle---
+signal Pos_P1 : integer range 0 to 5 ;
+signal Pos_P2 : integer range 0 to 5 ;
+
+-- Flag de avance--
+
+signal flagTime: STD_LOGIC;
+signal d: std_LOGIC_VECTOR (2 downto 0);
+
+signal resetPad : STD_LOGIC:='0';
+signal enaPad2  : STD_LOGIC;
+SIGNAL up_down_Pad2: STD_LOGIC;
+SIGNAL botar2   : STD_LOGIC;
+SIGNAL posicion_pad2: STD_LOGIC_VECTOR(2 downto 0);
+signal reset2: std_LOGIC:='0';
+
+signal enaPad1  : STD_LOGIC;
+SIGNAL up_down_Pad1: STD_LOGIC;
+signal padload: std_LOGIC;
+SIGNAL botar1   : STD_LOGIC;
+SIGNAL posicion_pad1: STD_LOGIC_VECTOR(2 downto 0);
+	BEGIN
+		Pad2: entity work.Countbarra
+	port map(
+	clk => clk,
+	rst => resetPad,
+	ena => enaPad2,
+	syn_clr => '0',
+	load => padload,
+	up => up_down_Pad2,
+	d => d,
+	final => botar2,
+	counter => posicion_pad2
+	);
+
+
+
+	Pad1: entity work.Countbarra
+	port map(
+		clk => clk,
+		rst => resetPad,
+		ena => enaPad1,
+		syn_clr => '0',
+		load => padload,
+		up => up_down_Pad1,
+		d => d,
+		final => botar1,
+		counter => posicion_pad1
+);
+  salida500ms:  entity work.univ_bin_counter_500ms
+  PORT MAP (  clk      => clk,
+              rst      => resetPad,
+				  ena      => ena,
+				  syn_clr  => '0',
+				  load     => '1',
+				  up       => '1',
+				  d        => "000000000000000000000000", 
+				  max_tick => flagTime
+			   );
+
+			Process(reset2, clk, flagTime)
+			Begin
+					If (reset2 = '1') then
+					  cs <= megawait;
+					  counter <= "0000";
+					elsif (rising_edge(clk)) then
+					  cs <= ns;
+					  counter<= counter + 1;
+					end if;
+End process;
+
+
+	Process(cs)
+		Begin
+			  case (cs) is
+					when megawait =>
+					d <="101";
+					enaPad1 <= '0';
+					enaPad2 <= '0';
+					reset2 <='0';
+					padload <= '1';
+					up_down_Pad1 <= '1';
+					up_down_Pad2 <= '1';
+					ns <= pad_wait;
+					
+					When 	Pad_wait => 
+
+						enaPad1 <= '0';
+						enaPad2 <= '0';
+						up_down_Pad1 <= '0';
+						padload <= '0';
+						up_down_Pad2 <='0';
+						resetPad <='0';
+						reset2 <='0';
+			
+
+					
+                 	if(flagTime= '1') then
+					   if (P1_DW = '0' and P1_UP = '1'   AND P2_DW = '0' AND P2_UP = '0')then 
+						ns <= Pad1_Down;
+						
+						elsif(P1_DW = '1' and P1_UP = '0' AND P2_DW = '0' AND P2_UP = '0')then
+					   ns <= Pad1_Up;
+						
+						elsif(P1_DW = '1' and P1_UP = '1' AND P2_DW = '1' AND P2_UP = '0' )then
+						ns <= Pad2_Down;
+						
+						elsif(P1_DW = '1' and P1_UP = '1' AND P2_DW = '0' AND P2_UP = '1' )then
+						ns <= Pad2_Up;
+						
+						elsif(P1_DW = '1' and P1_UP = '0' AND P2_DW = '0' AND P2_UP = '1' )then
+						ns <= Pad12_Ups;
+						
+						elsif(P1_DW = '0' and P1_UP = '1' AND P2_DW = '1' AND P2_UP = '0'  )then
+						ns <= Pad12_Downs;
+						
+						elsif(P1_DW = '1' and P1_UP = '0' AND P2_DW = '1' AND P2_UP = '0')then
+						ns <= Pad1_Up_Pad2_Down;
+						
+						elsif(P1_DW = '0' and P1_UP = '1' AND P2_DW = '0' AND P2_UP = '1')then
+						ns <= Pad1_Down_Pad2_Up;
+						else ns<= Pad_wait; 
+						end if;
+						end if; 
+						
+					When Pad1_Down => 
+						 enaPad1<= '1';
+						 up_down_Pad1<='0';
+						 enaPad2<= '0';
+						 up_down_Pad2<='0';
+						 resetPad<= '0';
+						 padload <= '0';
+						 reset2 <='0';
+			
+						 
+						 
+						 ns <= Pad_wait;
+					
+					When Pad1_Up => 
+						 enaPad1<= '1';
+						 up_down_Pad1<='1';
+						 enaPad2<= '0';
+						 up_down_Pad2<='0'; 
+						 resetPad<= '0';
+						 padload <= '0';
+						 reset2 <='0';
+						 ns <= Pad_wait;
+					
+					When Pad2_Down =>
+					    enaPad1<= '0';
+						 up_down_Pad1<='0';
+						 enaPad2<= '1';
+						 up_down_Pad2<='0'; 
+						 resetPad<= '0';
+						 padload <= '0';
+						 ns <= Pad_wait;
+						 
+					When Pad2_Up => 
+						 enaPad1<= '0';
+						 up_down_Pad1<='0';
+						 enaPad2<= '1';
+						 up_down_Pad2<='1'; 
+						 resetPad<= '0';
+						 padload <= '0';
+						 ns <= Pad_wait; 
+						 
+					When Pad12_Ups => 
+							enaPad1<= '1';
+						 up_down_Pad1<='1';
+						 enaPad2<= '1';
+						 up_down_Pad2<='1'; 
+						 resetPad<= '0';
+						 padload <= '0';
+						 ns <= Pad_wait;
+						
+					When Pad12_Downs => 
+						 enaPad1<= '1';
+						 up_down_Pad1<='0';
+						 enaPad2<= '1';
+						 up_down_Pad2<='0'; 
+						 resetPad<= '0';
+						 padload <= '0';
+						 ns <= Pad_wait;
+					
+					When Pad1_Up_Pad2_Down => 
+						 enaPad1<= '1';
+						 up_down_Pad1<='1';
+						 enaPad2<= '1';
+						 up_down_Pad2<='0';
+						resetPad<= '0';
+						padload <= '0';	
+						 ns <= Pad_wait;
+						
+					When Pad1_Down_Pad2_Up => 
+						 enaPad1<= '1';
+						 up_down_Pad1<='0';
+						 enaPad2<= '1';
+						 up_down_Pad2<='1';
+						 resetPad<= '0';
+						 padload <= '0';
+						 ns <= Pad_wait;	
+					
+			end case;
+			
+End process;
+
+    PadtoMux1: ENTITY work.PositionPads 
+    PORT MAP(
+     Pos_Pad => posicion_pad1,
+     PadRows => P1_Print
+     );
+	  
+	 PadtoMux2: ENTITY work.PositionPads 
+    PORT MAP(
+     Pos_Pad => posicion_pad2,
+     PadRows => P2_Print
+     ); 
+	  
+	 
+	  P1_Dummy <= posicion_pad1;
+	  p2_Dummy <= posicion_pad2;
+
+END behPads;
+
+					
+					 

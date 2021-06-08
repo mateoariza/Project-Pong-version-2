@@ -1,0 +1,708 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.std_logic_unsigned.all;
+use ieee.std_logic_arith.all;
+use ieee.numeric_std.all;
+
+
+
+
+
+ENTITY Ball IS
+PORT
+(
+P1_Dummy: in std_logic_Vector(2 downto 0);
+P2_Dummy: in std_logic_Vector(2 downto 0);
+reset, clk: IN STD_LOGIC;
+rowBall_out: out std_logic_Vector(7 downto 0);
+colBall_out: out std_logic_Vector(15 downto 0);
+LossP1_out : out integer range 0 to 3:=0;
+LossP2_out : out integer range 0 to 3:=0;
+ScoreP1_out : out std_LOGIC_vector (7 downto 0):="00000000";
+ScoreP2_out : out std_LOGIC_vector (7 downto 0):="00000000";
+botar1, botar2:out STD_LOGIC;
+intRtestout, intctestout: out std_LOGIC_vector (3 downto 0)
+
+
+
+
+
+
+);
+
+
+
+END Ball;
+
+
+
+
+
+
+ARCHITECTURE ArchBall OF Ball IS
+
+type state_type is (megawaitball, ball_wait, righ, lefts, Up_left, Up_right,
+Down_left, Down_right);
+
+
+
+signal cs, ns: state_type;
+
+
+
+signal DirRL : std_logic_vector (1 downto 0); --(0,1) right (1,0) left --
+signal DirUD : std_logic_vector (1 downto 0); --(0,1) up (1,0) down (0,0) neutral --
+
+
+
+signal VectorR: STD_logic_Vector (3 downto 0);
+signal VectorC: STD_logic_Vector (3 downto 0);
+
+
+
+signal VectorRtest: STD_logic_Vector (3 downto 0);
+signal VectorCtest: STD_logic_Vector (3 downto 0);
+
+
+
+
+signal Ballflag: STD_LOGIC;
+signal BallReset,ena: std_logic;
+
+
+
+signal LossP1 :integer range 0 to 3:=0;
+signal LossP2 :integer range 0 to 3:=0;
+signal ScoreP1 :std_LOGIC_Vector (7 downto 0):="00000000";
+signal ScoreP2 :std_LOGIC_Vector (7 downto 0):="00000000";
+
+
+
+signal rowBall: std_logic_Vector(7 downto 0);
+signal colBall: std_logic_Vector(15 downto 0);
+signal inic: std_LOGIC;
+signal resetball,resetN: STD_LOGIC;
+signal reset2 : STD_LOGIC:='1';
+signal enableCol : STD_LOGIC;
+signal enableRow : STD_LOGIC;
+signal baload : STD_LOGIC;
+signal up_down_col : STD_LOGIC;
+signal up_down_row : STD_LOGIC;
+signal dballcol : STD_LOGIC_Vector (3 downto 0);
+signal dballrow : STD_LOGIC_vector (3 downto 0);
+signal intgrR: integer range 0 to 7;
+signal intgrC: integer range 0 to 15;
+signal counter: std_LOGIC_Vector (3 downto 0);
+signal ball_bounce: std_LOGIC;
+BEGIN
+
+
+
+		OutBall: entity work.univ_bin_counter_ball
+		PORT MAP ( 
+		clk => clk,
+		rst => resetN,
+		ena => ena,
+		syn_clr => '0',
+		load => '1',
+		up => '1',
+		d => "00000000000000000000000000",
+		max_tick => Ballflag
+		);
+
+
+
+
+
+		ballRow: entity work.CountballRows
+		port map(
+		clk => clk,
+		rst => resetball,
+		ena => enableRow,
+		syn_clr => '0',
+		load => baload,
+		up => up_down_row,
+		d => dballrow,
+		final => botar1,
+		counter => VectorR
+		);
+
+
+
+		ballCol: entity work.CountballCols
+		port map(
+		clk => clk,
+		rst => resetball,
+		ena => enableCol,
+		syn_clr => '0',
+		load => baload,
+		up => up_down_col,
+		d => dballcol,
+		final => botar2,
+		counter => VectorC
+		);
+
+
+
+
+
+Process(reset2, clk)
+Begin
+If (reset2 = '1') then
+cs <= megawaitball;
+counter <= "0000";
+elsif (rising_edge(clk)) then
+cs <= ns;
+counter<= counter + 1;
+end if;
+End process;
+
+
+
+
+
+Process (cs,P1_Dummy, P2_Dummy, VectorC, VectorR, Ballflag, clk,DirRL,DirUD)
+begin
+case (cs) is
+when megawaitball =>
+enableCol<='1';
+enablerow<='1';
+up_down_col<='0';
+up_down_row<='0';
+BallReset <= '0';
+reset2 <='0';
+resetN<='1';
+dballcol <= "1001";
+dballrow <= "0010";
+ena <= '0';
+baload <= '1';
+resetball <='0';
+DirRL <= "10";
+DirUD <= "00";
+scoreP2 <= "00000000";
+
+ns <= ball_wait;
+
+
+when ball_wait =>
+
+enableRow<='0';
+enableCol<='0';
+--up_down_col<='0';
+--up_down_row<='0';
+BallReset <= '0';
+baload <= '0';
+resetN <= '0';
+ena <= '1';
+reset2 <='0';
+resetball <='0';
+
+-- rowball <= "11111111";
+--colball <= "00000000";
+
+if (ballflag ='1') then
+
+ball_bounce <= '1';
+
+if (ball_bounce = '1') then
+
+enableRow<='0';
+enableCol<='0';
+--up_down_col<='0';
+--up_down_row<='0';
+BallReset <= '0';
+baload <= '0';
+resetN <= '0';
+ena <= '1';
+reset2 <='0';
+resetball <='0';
+
+
+if(P1_Dummy = "0000" and VectorC = "1111" and VectorR = "0000") then -- Bounce Paddle 1 / posicion 0
+DirRL <= "01"; -- right --
+DirUD <= "01"; -- down --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0000" and VectorC = "1111" and VectorR = "0001") then
+DirRL <= "01"; -- right --
+DirUD <= "00"; -- neutral --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0000" and VectorC = "1111" and VectorR = "0010") then
+DirRL <= "01"; -- right--
+DirUD <= "01"; -- up --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0001" and VectorC = "1111" and VectorR = "0001") then -- Bounce Paddle 1 / posicion 1
+DirRL <= "01"; -- right--
+DirUD <= "10"; -- down --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0001" and VectorC = "1111" and VectorR = "0010") then
+DirRL <= "01"; -- right --
+DirUD <= "00"; -- neutral --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0001" and VectorC = "1111" and VectorR = "0011") then
+DirRL <= "01"; -- right--
+DirUD <= "01"; -- up --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0010" and VectorC = "1111" and VectorR = "0010") then -- Bounce Paddle 1 / posicion 2
+DirRL <= "01"; -- right--
+DirUD <= "10"; -- down --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0010" and VectorC = "1111" and VectorR = "0011") then
+DirRL <= "01"; -- right --
+DirUD <= "00"; -- neutral --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0010" and VectorC = "1111" and VectorR = "0100") then
+DirRL <= "01"; -- right--
+DirUD <= "01"; -- up --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0011" and VectorC = "1111" and VectorR = "0011") then -- Bounce Paddle 1 / posicion 3
+DirRL <= "01"; -- right--
+DirUD <= "10"; -- down --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0011" and VectorC = "1111" and VectorR = "0100") then
+DirRL <= "01"; -- right --
+DirUD <= "00"; -- neutral --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0011" and VectorC = "1111" and VectorR = "0101") then
+DirRL <= "01"; -- right--
+DirUD <= "01"; -- up --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0100" and VectorC = "1111" and VectorR = "0100") then -- Bounce Paddle 1 / posicion 4
+DirRL <= "01"; -- right--
+DirUD <= "10"; -- down --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0100" and VectorC = "1111" and VectorR = "0101") then
+DirRL <= "01"; -- right --
+DirUD <= "00"; -- neutral --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0100" and VectorC = "1111" and VectorR = "0110") then
+DirRL <= "01"; -- right--
+DirUD <= "01"; -- up --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0101" and VectorC = "1111" and VectorR = "0101") then -- Bounce Paddle 1 / posicion 5
+DirRL <= "01"; -- right--
+DirUD <= "10"; -- down --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0101" and VectorC = "1111" and VectorR = "0110") then
+DirRL <= "01"; -- right --
+DirUD <= "00"; -- neutral --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+
+
+
+elsif(P1_Dummy = "0101" and VectorC = "1111" and VectorR = "0111") then
+DirRL <= "01"; -- right--
+DirUD <= "10"; -- up --
+ball_bounce <= '0';
+--ScoreP1 <= ScoreP1 + 1;
+ELSe
+ns <= ball_wait;
+--elsif( VectorC = "0111" and DirRL ="10") then
+--LossP1 <= LossP1+1;
+end if;
+
+--
+--				if (VectorR = "0111" and DirUD = "01") then -- Colision Arriba--
+--				DirUD <= "10"; -- down --
+--				ball_bounce <= '0';
+--				elsif (VectorR = "0000" and DirUD = "10") then -- Colision Abajo--
+--				DirUD <= "01"; -- up --
+--				ball_bounce <= '0';
+--				else
+--				ns <= ball_wait;
+--				end if;
+
+
+--------------------------0---------------------------------------
+if(P2_Dummy = "0000" and VectorC = "0000" and VectorR = "0000") then
+DirRL <= "10";
+DirUD <= "01";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0000" and VectorC = "0000" and VectorR = "0001") then
+DirRL <= "10";
+DirUD <= "00";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0000" and VectorC = "0000" and VectorR = "0010") then
+DirRL <= "10";
+DirUD <= "01";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+---------------------------1---------------------------------------------
+elsif(P2_Dummy = "0001" and VectorC = "0000" and VectorR = "0001") then
+DirRL <= "10";
+DirUD <= "10";
+ScoreP2 <= ScoreP2 + 1;
+ball_bounce <= '0';
+
+elsif(P2_Dummy = "0001" and VectorC = "0000" and VectorR = "0010") then
+DirRL <= "10";
+DirUD <= "00";
+ScoreP2 <= ScoreP2 + 1;
+ball_bounce <= '0';
+
+elsif(P2_Dummy = "0001" and VectorC = "0000" and VectorR = "0011") then
+DirRL <= "10";
+DirUD <= "01";
+ScoreP2 <= ScoreP2 + 1;
+ball_bounce <= '0';
+
+----------------------------2---------------------------------------------------------
+elsif(P2_Dummy = "0010" and VectorC = "0000" and VectorR = "0010") then
+DirRL <= "10";
+DirUD <= "10";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0010" and VectorC = "0000" and VectorR = "0011") then
+DirRL <= "10";
+DirUD <= "00";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0010" and VectorC = "0000" and VectorR = "0100") then
+DirRL <= "10";
+DirUD <= "01";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+--------------------------3-------------------------------------------------------------------------
+elsif(P2_Dummy = "0011" and VectorC = "0000" and VectorR = "0011") then
+DirRL <= "10";
+DirUD <= "10";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0011" and VectorC = "0000" and VectorR = "0100") then
+DirRL <= "10";
+DirUD <= "00";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0011" and VectorC = "0000" and VectorR = "0101") then
+DirRL <= "10";
+DirUD <= "01";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+---------------------------4--------------------------------------------------------------------------
+elsif(P2_Dummy = "0100" and VectorC = "0000" and VectorR = "0100") then
+DirRL <= "10";
+DirUD <= "10";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0100" and VectorC = "0000" and VectorR = "0101") then
+DirRL <= "10";
+DirUD <= "00";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0100" and VectorC = "0000" and VectorR = "0110") then
+DirRL <= "10";
+DirUD <= "01";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+----------------------------5------------------------------------------------------------
+elsif(P2_Dummy = "0101" and VectorC = "0000" and VectorR = "0101") then
+DirRL <= "10";
+DirUD <= "10";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0101" and VectorC = "0000" and VectorR = "0110") then
+DirRL <= "10";
+DirUD <= "00";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+elsif(P2_Dummy = "0101" and VectorC = "0000" and VectorR = "0111") then
+DirRL <= "10";
+DirUD <= "10";
+ball_bounce <= '0';
+--ScoreP2 <= ScoreP2 + 1;
+--elsif(VectorC = "0000" and DirRL ="01") then
+--LossP2 <= LossP2+1;
+--ELSe
+--ns <= ball_wait;
+end if;
+
+--if (VectorR = "0111" and DirUD = "01") then -- Colision Arriba--
+--DirUD <= "10"; -- down --
+--ball_bounce <= '0';
+--end if;
+--
+--if (VectorR = "0000" and DirUD = "10") then -- Colision Abajo--
+--DirUD <= "01"; -- up --
+--ball_bounce <= '0';
+--end if;
+--else
+--ns <= ball_wait;
+end if;
+
+if ( DirRL = "01" AND DirUD = "00") then -- right
+ns <= righ;
+
+elsif (DirRL = "10" AND DirUD = "00") then -- left
+ns <=lefts;
+elsif (DirRL = "10" AND DirUD = "01") then -- left up--
+ns <= up_left;
+elsif (DirRL = "01" AND DirUD = "01") then -- rigt up--
+ns <= up_right;
+elsif (DirRL = "10" AND DirUD = "10") then -- left down--
+ns <= down_left;
+elsif (DirRL = "01" AND DirUD = "10") then -- right down--
+ns <= down_right;
+else ns <=ball_wait;
+end if;
+else ns <=ball_wait;
+end if;
+
+when righ =>
+enableCol <='1';
+up_down_col <='0';
+enableRow <='0';
+up_down_Row <='0';
+resetN <= '0';
+BallReset <= '1';
+baload <= '0';
+resetball <='0';
+
+ns <=ball_wait;
+
+
+when lefts =>
+enableCol <='1';
+up_down_col <='1';
+enableRow <='0';
+up_down_Row <='0';
+
+BallReset <= '1';
+baload <= '0';
+resetball <='0';
+ns <=ball_wait;
+
+when up_left =>
+enableCol <='1';
+up_down_col <='1';
+enableRow <='1';
+up_down_Row <='1';
+
+BallReset <= '1';
+baload <= '0';
+resetball <='0';
+  
+  if (ball_bounce = '1' ) then
+				if (VectorR = "0110" and DirUD = "01") then -- Colision Arriba--
+				DirUD <= "10"; -- down --
+				ball_bounce <= '0';
+				else
+				ns <= ball_wait;
+				end if;
+  end if;
+
+
+ns <= ball_wait;
+
+when up_right =>
+enableCol <='1';
+up_down_col <='0';
+enableRow <='1';
+up_down_Row <='1';
+
+BallReset <= '1';
+baload <= '0';
+resetball <='0';
+
+if (ball_bounce = '1' ) then
+		if (ball_bounce = '1' ) then
+				if (VectorR = "0110" and DirUD = "01") then -- Colision Arriba--
+				DirUD <= "10"; -- down --
+				ball_bounce <= '0';
+				else
+				ns <= ball_wait;
+				end if;
+		end if;
+end if;
+
+ns <= ball_wait;
+
+
+when down_left =>
+enableCol <='1';
+up_down_col <='1';
+enableRow <='1';
+up_down_Row <='0';
+
+BallReset <= '1';
+baload <= '0';
+resetball <='0';
+
+
+if (ball_bounce = '1' ) then			
+				if (VectorR = "0001"  and DirUD = "10") then -- Colision Abajo--
+				DirUD <= "01"; -- up --
+				ball_bounce <= '0';
+				else
+				ns <= ball_wait;
+				end if;
+end if;
+
+ns <= ball_wait;
+
+when down_right =>
+enableCol <='1';
+up_down_col <='0';
+enableRow <='1';
+up_down_Row <='0';
+
+BallReset <= '1';
+baload <= '0';
+resetball <='0';
+
+if (ball_bounce = '1' ) then
+	if (VectorR = "0001" and DirUD = "10") then -- Colision Abajo--
+				DirUD <= "01"; -- up --
+				ball_bounce <= '0';
+				else
+				ns <= ball_wait;
+				end if;
+end if;
+
+
+
+ns <= ball_wait;
+
+
+
+
+
+
+--if (VectorR = "0111" and DirUD = "01") then -- Colision Arriba--
+--DirUD <= "10"; -- down --
+--end if;
+--
+--if (VectorR = "0000" and DirUD = "10") then -- Colision Abajo--
+--DirUD <= "01"; -- up --
+--end if;
+
+
+
+end case;
+end Process;
+
+
+
+
+
+-- balltoMux1: ENTITY work.MuxRows
+-- PORT MAP(
+-- Pos_row => VectorR,
+-- ballRows => rowball
+-- );
+--
+-- balltoMux2: ENTITY work.MuxCols
+-- PORT MAP(
+-- Pos_col => VectorC,
+-- ballcol => colball
+-- );
+
+
+--rowball(4) <= '0';
+-- colball(4) <= '1';
+rowBall_out <= rowBall;
+colBall_out <= colBall;
+
+intRtestout <= vectorR;
+intCtestout <= vectorC;
+
+
+
+--PROCESS(P1_Dummy, P2_Dummy, VectorC, VectorR, Ballflag, clk)
+
+
+
+--Begin
+
+
+
+
+
+--end PROCESS;
+
+
+
+balltoMux1: ENTITY work.MuxRows
+PORT MAP(
+Pos_row => VectorR,
+ballRows => rowball
+);
+
+balltoMux2: ENTITY work.MuxCols
+PORT MAP(
+Pos_col => VectorC,
+ballcol => colball
+);
+
+
+LossP1_out <= LossP1;
+LossP2_out <= LossP1;
+ScoreP1_out <= ScoreP1;
+ScoreP2_out <= ScoreP2;
+
+END ArchBall;
